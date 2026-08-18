@@ -36,6 +36,8 @@ encoder:
   weight_path: /home/data03/wj/weight/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth
   image_size: 512
   patch_size: 16
+  intermediate_layers: [4, 11, 17, 23]
+  memory_layer_slots: [0, 1, 2, 3]
 proposal:
   name: sam2
   repo: /home/data03/wj/wsdino_demo/sam2
@@ -78,10 +80,6 @@ global_prototype:
   anchor_weight: 0.7
   candidate_weight: 0.3
   candidate_threshold: 0.75
-  fusion:
-    enabled: true
-    local_weight: 0.5
-    global_weight: 0.5
 agreement_gate:
   enabled: true
   dino_threshold: 0.55
@@ -96,6 +94,10 @@ model:
   decoder_layers: 6
   num_heads: 8
   use_prototype_head: false
+supervision:
+  instance_enabled: true
+  instance_target_mode: all_records
+  sam_anchor_enabled: true
 loss:
   class_weight: 2.0
   mask_weight: 5.0

@@ -37,6 +37,8 @@ encoder:
   weight_path: ${DINOV3_WEIGHT}
   image_size: 1024
   patch_size: 16
+  intermediate_layers: [4, 11, 17, 23]
+  memory_layer_slots: [0, 1, 2, 3]
 proposal:
   name: sam2
   repo: ${SAM2_REPO}
@@ -70,21 +72,17 @@ pseudo_update:
   keep_threshold: 0.55
   class_change_margin: 0.15
   missing_decay: 0.9
-  persistent_bank: false
+  persistent_bank: true
 global_prototype:
-  enabled: false
+  enabled: true
   use_start_epoch: 2
   update_start_epoch: 3
   momentum: 0.95
   anchor_weight: 0.7
   candidate_weight: 0.3
   candidate_threshold: 0.75
-  fusion:
-    enabled: false
-    local_weight: 0.5
-    global_weight: 0.5
 agreement_gate:
-  enabled: false
+  enabled: true
   dino_threshold: 0.55
   dino_margin: 0.05
   ema_threshold: 0.75
@@ -93,10 +91,14 @@ pseudo_bank:
 model:
   hidden_dim: 256
   num_queries: 100
-  memory_mode: pyramid
+  memory_mode: same_resolution
   decoder_layers: 6
   num_heads: 8
   use_prototype_head: false
+supervision:
+  instance_enabled: true
+  instance_target_mode: all_records
+  sam_anchor_enabled: true
 loss:
   class_weight: 2.0
   mask_weight: 5.0
@@ -108,8 +110,8 @@ loss:
 train:
   output_dir: ./outputs/potsdam_point_objectformer
   epochs: 20
-  batch_size: 1
-  grad_accum_steps: 8
+  batch_size: 8
+  grad_accum_steps: 1
   lr: 0.0001
   weight_decay: 0.05
   clip_grad_norm: 0.1

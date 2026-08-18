@@ -13,8 +13,16 @@ path:
 5. an instance query decoder trained from the evolving pseudo instances;
 6. image-only semantic prediction at test time.
 
-All ablation scripts, LPOSS experiments, visualization utilities, stitching
-code, logs, checkpoints and full datasets are intentionally excluded.
+All ablation scripts, visualization utilities, stitching code, logs,
+checkpoints and full datasets are intentionally excluded.
+
+The three dataset configs use the same canonical Full method. Only dataset
+paths, label mappings, image sizes and proposal/data-loading parameters differ.
+The Full method enables global prototypes, persistent pseudo-instances,
+teacher/student EMA agreement, proposal graph propagation, same-resolution
+DINOv3 memories, and image-only inference. Local prototypes are used only
+before a global prototype for that class has been established; no local/global
+weighted fusion is used.
 
 ## Dependencies
 
