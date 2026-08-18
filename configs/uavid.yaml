@@ -1,0 +1,140 @@
+seed: 42
+dataset:
+  root: /home/data03/wj/dataset/Seg/UAVid_512
+  image_dir: image
+  label_dir: mask
+  train_split: train
+  infer_split: val
+task:
+  mode: multiclass
+  ignore_id: 255
+  background_id: 7
+  target_classes:
+    0: building
+    1: road
+    2: tree
+    3: low_vegetation
+    4: moving_car
+    5: static_car
+    6: human
+    7: background_clutter
+label:
+  format: gray
+prompt:
+  protocol: point_only
+  points_per_class: 1
+  seed: 42
+  center_topk_ratio: 0.2
+  point_match_radius: 20
+  point_class_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  use_box: false
+  use_text: false
+encoder:
+  name: dinov3
+  repo: /home/data03/wj/wsdino_demo/dinov3
+  model_name: dinov3_vitl16
+  weight_path: /home/data03/wj/weight/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth
+  image_size: 512
+  patch_size: 16
+proposal:
+  name: sam2
+  repo: /home/data03/wj/wsdino_demo/sam2
+  checkpoint: /home/data03/wj/wsdino_demo/sam2/checkpoints/sam2.1_hiera_base_plus.pt
+  model_cfg: configs/sam2.1/sam2.1_hiera_b+.yaml
+  cache: true
+  cache_dir: ./cache/sam2_uavid
+  points_per_side: 32
+  pred_iou_thresh: 0.9
+  stability_score_thresh: 0.7
+  box_nms_thresh: 0.95
+  crop_n_layers: 1
+  crop_nms_thresh: 0.95
+  crop_n_points_downscale_factor: 1
+  min_area: 20
+  max_area_ratio: 0.98
+object_graph:
+  knn: 12
+  rounds: 3
+  initial_threshold: 0.72
+  margin_threshold: 0.08
+  prototype_weight: 0.65
+  graph_weight: 0.35
+  decoder_weight: 0.25
+  prototype_momentum: 0.95
+pseudo_update:
+  start_epoch: 3
+  interval: 1
+  ema_decay: 0.999
+  add_threshold: 0.75
+  keep_threshold: 0.55
+  class_change_margin: 0.15
+  missing_decay: 0.9
+  persistent_bank: true
+global_prototype:
+  enabled: true
+  use_start_epoch: 2
+  update_start_epoch: 3
+  momentum: 0.95
+  anchor_weight: 0.7
+  candidate_weight: 0.3
+  candidate_threshold: 0.75
+  fusion:
+    enabled: true
+    local_weight: 0.5
+    global_weight: 0.5
+agreement_gate:
+  enabled: true
+  dino_threshold: 0.55
+  dino_margin: 0.05
+  ema_threshold: 0.75
+pseudo_bank:
+  root: ./outputs/uavid_same_resolution/pseudo_bank
+model:
+  hidden_dim: 256
+  num_queries: 100
+  memory_mode: same_resolution
+  decoder_layers: 6
+  num_heads: 8
+  use_prototype_head: false
+loss:
+  class_weight: 2.0
+  mask_weight: 5.0
+  dice_weight: 5.0
+  no_object_weight: 0.1
+  num_points: 4096
+  prototype_weight: 0.0
+  semantic_weight: 1.0
+train:
+  output_dir: ./outputs/uavid_same_resolution
+  epochs: 20
+  batch_size: 16
+  grad_accum_steps: 1
+  lr: 0.0001
+  weight_decay: 0.05
+  clip_grad_norm: 0.1
+  amp: true
+  amp_dtype: bfloat16
+  save_every: 1
+  eval_every: 1
+infer:
+  output_dir: ./outputs/uavid_same_resolution/inference
+visualization:
+  enabled: false
+  every: 1
+  num_train_images: 0
+  num_test_images: 0
+hybrid_anchor:
+  enabled: true
+  legacy_matching: true
+  sam_weight: 1.0
+  default_patch_tokens: 2
+  car_class_id: 4
+  car_patch_tokens: 1
+  cache_dir: ./cache/dino_rotation_uavid
+complete_graph:
+  enabled: true
+  threshold: 0.8
+  max_area_ratio: 0.25
+  class_threshold: 0.55
+  class_margin: 0.05
+  decoder_weight: 0.25
