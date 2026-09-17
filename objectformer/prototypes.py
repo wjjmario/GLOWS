@@ -33,8 +33,14 @@ def resolve_class_prototypes(
             continue
         local_weight = float(local_weight)
         global_weight = float(global_weight)
-        if local_weight < 0.0 or global_weight < 0.0 or local_weight + global_weight <= 0.0:
-            raise ValueError("Local/global prototype fusion weights must be non-negative and sum to > 0")
+        if (
+            local_weight < 0.0
+            or global_weight < 0.0
+            or local_weight + global_weight <= 0.0
+        ):
+            raise ValueError(
+                "Local/global prototype fusion weights must be non-negative and sum to > 0"
+            )
         resolved[cid] = F.normalize(
             local_weight * local + global_weight * global_vector,
             dim=0,
@@ -74,14 +80,19 @@ class EpochPrototypeAccumulator:
             node = node_by_id.get(int(mid))
             if node is not None:
                 self._add(
-                    self.anchor_sum, self.anchor_weight, self.anchor_count,
-                    cid, node["embedding"], 1.0,
+                    self.anchor_sum,
+                    self.anchor_weight,
+                    self.anchor_count,
+                    cid,
+                    node["embedding"],
+                    1.0,
                 )
 
     @staticmethod
     def _top_class(scores):
         ranked = sorted(
-            ((float(score), int(cid)) for cid, score in scores.items()), reverse=True,
+            ((float(score), int(cid)) for cid, score in scores.items()),
+            reverse=True,
         )
         if not ranked:
             return None, -1.0, -1.0
@@ -133,8 +144,12 @@ class EpochPrototypeAccumulator:
                 continue
 
             self._add(
-                self.candidate_sum, self.candidate_weight, self.candidate_count,
-                record.class_id, node["embedding"], record.confidence,
+                self.candidate_sum,
+                self.candidate_weight,
+                self.candidate_count,
+                record.class_id,
+                node["embedding"],
+                record.confidence,
             )
             self.accepted += 1
 
@@ -178,7 +193,9 @@ class EpochPrototypeAccumulator:
                 drift[cid] = 0.0
             else:
                 old = F.normalize(old.to(target.device).float(), dim=0)
-                new = F.normalize(momentum * old + (1.0 - momentum) * target, dim=0).detach()
+                new = F.normalize(
+                    momentum * old + (1.0 - momentum) * target, dim=0
+                ).detach()
                 drift[cid] = float((1.0 - torch.dot(old, new)).clamp_min(0.0).item())
             updated[cid] = new
 

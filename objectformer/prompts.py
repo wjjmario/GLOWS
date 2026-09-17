@@ -11,10 +11,12 @@ def _distance_transform(mask):
     mask = (np.asarray(mask) > 0).astype(np.uint8)
     try:
         import cv2
+
         return cv2.distanceTransform(mask, cv2.DIST_L2, 5)
     except ImportError:
         # Exact Euclidean distance transform is available in the training env.
         from scipy.ndimage import distance_transform_edt
+
         return distance_transform_edt(mask).astype(np.float32)
 
 
@@ -41,10 +43,19 @@ def center_biased_points(label, class_ids, points_per_class=1, seed=42, topk_rat
         candidates = order[:topn]
         if int(points_per_class) == 1:
             # Preserve the historical 1-point protocol exactly.
-            chosen = rng.choice(candidates, size=min(int(points_per_class), len(candidates)), replace=False)
+            chosen = rng.choice(
+                candidates,
+                size=min(int(points_per_class), len(candidates)),
+                replace=False,
+            )
         else:
             chosen = _multi_point_prefix(
-                label == int(cid), ys, xs, candidates, int(points_per_class), rng,
+                label == int(cid),
+                ys,
+                xs,
+                candidates,
+                int(points_per_class),
+                rng,
             )
         points[int(cid)] = [[float(xs[i]), float(ys[i])] for i in chosen]
     return points
@@ -64,6 +75,7 @@ def _multi_point_prefix(class_mask, ys, xs, candidates, count, rng):
         return np.empty((0,), dtype=np.int64)
     try:
         from scipy import ndimage
+
         components, _ = ndimage.label(np.asarray(class_mask, dtype=np.uint8))
     except ImportError:
         components = np.asarray(class_mask, dtype=np.int32)
@@ -80,7 +92,11 @@ def _multi_point_prefix(class_mask, ys, xs, candidates, count, rng):
         rng.shuffle(values)
         selected.append(int(values[0]))
     selected_set = set(selected)
-    remaining = [int(x) for x in np.asarray(candidates, dtype=np.int64) if int(x) not in selected_set]
+    remaining = [
+        int(x)
+        for x in np.asarray(candidates, dtype=np.int64)
+        if int(x) not in selected_set
+    ]
     rng.shuffle(remaining)
     selected.extend(remaining)
     return np.asarray(selected[:count], dtype=np.int64)

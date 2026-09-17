@@ -27,7 +27,9 @@ class PseudoInstanceBank:
             payload = json.load(handle)
         if int(payload.get("schema_version", -1)) != self.SCHEMA_VERSION:
             raise RuntimeError(f"Unsupported pseudo-bank schema: {path}")
-        payload["instances"] = [PseudoInstance(**item) for item in payload.get("instances", [])]
+        payload["instances"] = [
+            PseudoInstance(**item) for item in payload.get("instances", [])
+        ]
         return payload
 
     def save(self, split, stem, instances, epoch, point_signature):
@@ -38,7 +40,9 @@ class PseudoInstanceBank:
             "point_signature": str(point_signature),
             "instances": [x.to_dict() for x in instances],
         }
-        fd, tmp = tempfile.mkstemp(prefix=".pseudo-", suffix=".json", dir=os.path.dirname(path))
+        fd, tmp = tempfile.mkstemp(
+            prefix=".pseudo-", suffix=".json", dir=os.path.dirname(path)
+        )
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, indent=2, sort_keys=True)

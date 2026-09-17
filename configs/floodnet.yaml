@@ -1,0 +1,39 @@
+extends: full.yaml
+dataset:
+  root: data/floodnet
+  image_dir: image
+  label_dir: mask
+  train_split: train
+  infer_split: val
+task:
+  mode: multiclass
+  background_id: 0
+  ignore_id: 0
+  target_classes:
+    1: building_flooded
+    2: building_non_flooded
+    3: road_flooded
+    4: road_non_flooded
+    5: water
+    6: tree
+    7: vehicle
+    8: pool
+    9: grass
+encoder:
+  image_size: 1024
+proposal:
+  pred_iou_thresh: 0.8
+  box_nms_thresh: 0.85
+  crop_n_layers: 0
+  min_area: 0
+  min_mask_region_area: 100
+  cache_dir: cache/floodnet/sam2
+hybrid_anchor:
+  car_class_id: -1
+  car_patch_tokens: 2
+  cache_dir: cache/floodnet/dino_rotation
+train:
+  lr: 0.0005
+  output_dir: outputs/floodnet
+infer:
+  output_dir: outputs/floodnet/prediction

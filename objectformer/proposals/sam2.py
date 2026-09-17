@@ -25,7 +25,9 @@ class SAM2ProposalGenerator:
         if not os.path.exists(checkpoint):
             raise FileNotFoundError(checkpoint)
         print(f"loading SAM2: {checkpoint}")
-        sam2 = build_sam2(cfg["model_cfg"], checkpoint, device=device, apply_postprocessing=False)
+        sam2 = build_sam2(
+            cfg["model_cfg"], checkpoint, device=device, apply_postprocessing=False
+        )
         self.generator = SAM2AutomaticMaskGenerator(
             model=sam2,
             points_per_side=int(cfg.get("points_per_side", 32)),
@@ -34,12 +36,16 @@ class SAM2ProposalGenerator:
             box_nms_thresh=float(cfg.get("box_nms_thresh", 0.95)),
             crop_n_layers=int(cfg.get("crop_n_layers", 1)),
             crop_nms_thresh=float(cfg.get("crop_nms_thresh", 0.95)),
-            crop_n_points_downscale_factor=int(cfg.get("crop_n_points_downscale_factor", 1)),
-            min_mask_region_area=0,
+            crop_n_points_downscale_factor=int(
+                cfg.get("crop_n_points_downscale_factor", 1)
+            ),
+            min_mask_region_area=int(cfg.get("min_mask_region_area", 0)),
         )
 
     def _cache_path(self, split, stem):
-        return os.path.join(self.cache_dir, self.dataset_name, split, f"{stem}_instance_id.tif")
+        return os.path.join(
+            self.cache_dir, self.dataset_name, split, f"{stem}_instance_id.tif"
+        )
 
     def _filter_anns(self, anns, h, w):
         min_area = int(self.cfg.get("min_area", 10))

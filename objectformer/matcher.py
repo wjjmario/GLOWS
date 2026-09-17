@@ -17,8 +17,12 @@ def shared_random_points(num_points, device, generator=None):
 
 def pairwise_sigmoid_ce(inputs, targets):
     # inputs QxP, targets TxP -> QxT
-    positive = F.binary_cross_entropy_with_logits(inputs[:, None, :], torch.ones_like(inputs[:, None, :]), reduction="none")
-    negative = F.binary_cross_entropy_with_logits(inputs[:, None, :], torch.zeros_like(inputs[:, None, :]), reduction="none")
+    positive = F.binary_cross_entropy_with_logits(
+        inputs[:, None, :], torch.ones_like(inputs[:, None, :]), reduction="none"
+    )
+    negative = F.binary_cross_entropy_with_logits(
+        inputs[:, None, :], torch.zeros_like(inputs[:, None, :]), reduction="none"
+    )
     return (positive * targets[None] + negative * (1.0 - targets[None])).mean(-1)
 
 
@@ -30,7 +34,14 @@ def pairwise_dice(inputs, targets):
 
 
 class HungarianMatcher(torch.nn.Module):
-    def __init__(self, cost_class=2.0, cost_mask=5.0, cost_dice=5.0, cost_proto=1.0, num_points=4096):
+    def __init__(
+        self,
+        cost_class=2.0,
+        cost_mask=5.0,
+        cost_dice=5.0,
+        cost_proto=1.0,
+        num_points=4096,
+    ):
         super().__init__()
         if cost_class == cost_mask == cost_dice == 0:
             raise ValueError("At least one matching cost must be non-zero")
@@ -52,24 +63,38 @@ class HungarianMatcher(torch.nn.Module):
                 continue
             class_cost = -logits[batch_index].softmax(-1)[:, target["labels"]]
             coords = shared_random_points(self.num_points, masks.device)
-            pred = sample_points(masks[batch_index][:, None], coords.expand(masks.shape[1], -1, -1))
+            pred = sample_points(
+                masks[batch_index][:, None], coords.expand(masks.shape[1], -1, -1)
+            )
             tgt = sample_points(target["masks"][:, None], coords.expand(count, -1, -1))
             mask_cost = pairwise_sigmoid_ce(pred.float(), tgt.float())
             dice_cost = pairwise_dice(pred.float(), tgt.float())
-            confidence = target.get("weights", torch.ones(count, device=logits.device)).clamp(0.05, 1.0)
-            cost = self.cost_class * class_cost + confidence[None] * (self.cost_mask * mask_cost + self.cost_dice * dice_cost)
+            confidence = target.get(
+                "weights", torch.ones(count, device=logits.device)
+            ).clamp(0.05, 1.0)
+            cost = self.cost_class * class_cost + confidence[None] * (
+                self.cost_mask * mask_cost + self.cost_dice * dice_cost
+            )
             if (
                 self.cost_proto > 0
                 and outputs.get("pred_prototypes") is not None
                 and target.get("embeddings") is not None
                 and target["embeddings"].numel()
             ):
-                proto_cost = 1.0 - outputs["pred_prototypes"][batch_index] @ F.normalize(target["embeddings"].float(), dim=1).T
+                proto_cost = (
+                    1.0
+                    - outputs["pred_prototypes"][batch_index]
+                    @ F.normalize(target["embeddings"].float(), dim=1).T
+                )
                 cost = cost + self.cost_proto * proto_cost
-            cost = torch.nan_to_num(cost, nan=1e4, posinf=1e4, neginf=-1e4).cpu().numpy()
+            cost = (
+                torch.nan_to_num(cost, nan=1e4, posinf=1e4, neginf=-1e4).cpu().numpy()
+            )
             src, dst = linear_sum_assignment(cost)
-            indices.append((
-                torch.as_tensor(src, dtype=torch.int64, device=logits.device),
-                torch.as_tensor(dst, dtype=torch.int64, device=logits.device),
-            ))
+            indices.append(
+                (
+                    torch.as_tensor(src, dtype=torch.int64, device=logits.device),
+                    torch.as_tensor(dst, dtype=torch.int64, device=logits.device),
+                )
+            )
         return indices

@@ -24,7 +24,9 @@ def proposal_nodes(feature_map, instance_map):
     """Pool one normalized DINO descriptor for every SAM proposal."""
     inst = np.asarray(instance_map, dtype=np.int64)
     _, channels, hf, wf = feature_map.shape
-    small = torch.as_tensor(inst, device=feature_map.device, dtype=torch.float32)[None, None]
+    small = torch.as_tensor(inst, device=feature_map.device, dtype=torch.float32)[
+        None, None
+    ]
     small = F.interpolate(small, size=(hf, wf), mode="nearest")[0, 0].long()
     nodes = []
     feat = feature_map[0].float()
@@ -37,16 +39,20 @@ def proposal_nodes(feature_map, instance_map):
         if not token_mask.any() or not pixel_mask.any():
             continue
         embedding = F.normalize(feat[:, token_mask].mean(dim=1), dim=0)
-        nodes.append({
-            "mask_id": mid,
-            "embedding": embedding,
-            "mask": pixel_mask,
-            "area": int(pixel_mask.sum()),
-        })
+        nodes.append(
+            {
+                "mask_id": mid,
+                "embedding": embedding,
+                "mask": pixel_mask,
+                "area": int(pixel_mask.sum()),
+            }
+        )
     return nodes
 
 
-def instances_to_targets(records, instance_map, class_to_index, device, nodes=None, point_fallbacks=None):
+def instances_to_targets(
+    records, instance_map, class_to_index, device, nodes=None, point_fallbacks=None
+):
     labels, masks, weights, mask_ids, embeddings = [], [], [], [], []
     node_by_id = {int(n["mask_id"]): n for n in (nodes or [])}
     inst = np.asarray(instance_map)
@@ -60,7 +66,9 @@ def instances_to_targets(records, instance_map, class_to_index, device, nodes=No
         labels.append(class_to_index[cid])
         masks.append(torch.from_numpy(mask.copy()))
         confidence = float(record.confidence)
-        weights.append(float(np.clip(confidence, 0.05, 1.0)) if np.isfinite(confidence) else 0.05)
+        weights.append(
+            float(np.clip(confidence, 0.05, 1.0)) if np.isfinite(confidence) else 0.05
+        )
         mask_ids.append(int(record.mask_id))
         node = node_by_id.get(int(record.mask_id))
         if node is not None:
@@ -87,10 +95,18 @@ def instances_to_targets(records, instance_map, class_to_index, device, nodes=No
         mask_ids.append(-(index + 1))
     return {
         "labels": torch.tensor(labels, dtype=torch.long, device=device),
-        "masks": torch.stack(masks).to(device=device, dtype=torch.float32) if masks else torch.zeros((0, h, w), device=device),
+        "masks": (
+            torch.stack(masks).to(device=device, dtype=torch.float32)
+            if masks
+            else torch.zeros((0, h, w), device=device)
+        ),
         "weights": torch.tensor(weights, dtype=torch.float32, device=device),
         "mask_ids": mask_ids,
-        "embeddings": torch.stack(embeddings).to(device) if len(embeddings) == len(labels) and embeddings else torch.zeros((0, 0), device=device),
+        "embeddings": (
+            torch.stack(embeddings).to(device)
+            if len(embeddings) == len(labels) and embeddings
+            else torch.zeros((0, 0), device=device)
+        ),
     }
 
 

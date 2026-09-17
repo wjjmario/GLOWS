@@ -21,7 +21,16 @@ class DINOv3Encoder:
         if weight_path and not os.path.exists(weight_path):
             raise FileNotFoundError(weight_path)
         print(f"loading DINOv3 {cfg['model_name']}: {weight_path}")
-        self.model = torch.hub.load(repo, cfg["model_name"], source="local", weights=weight_path)
+        # Load the local state directly: upstream URL loading duplicates even
+        # file:// weights into the user's system-disk torch cache.
+        if not weight_path:
+            raise ValueError("encoder.weight_path must point to a local checkpoint")
+        self.model = torch.hub.load(
+            repo, cfg["model_name"], source="local", pretrained=False
+        )
+        self.model.load_state_dict(
+            torch.load(weight_path, map_location="cpu", weights_only=True)
+        )
         self.model.to(device).eval()
         for p in self.model.parameters():
             p.requires_grad = False
@@ -30,7 +39,10 @@ class DINOv3Encoder:
         self.model_name = str(cfg.get("model_name", "")).lower()
         self.encoder_size = str(cfg.get("encoder_size", self._infer_encoder_size()))
         self.intermediate_layers = [
-            int(index) for index in cfg.get("intermediate_layers", self._default_layers(self.encoder_size))
+            int(index)
+            for index in cfg.get(
+                "intermediate_layers", self._default_layers(self.encoder_size)
+            )
         ]
         if not self.intermediate_layers:
             raise ValueError("encoder.intermediate_layers must be non-empty")
@@ -39,13 +51,19 @@ class DINOv3Encoder:
                 "encoder.intermediate_layers must contain unique, increasing block indices"
             )
         self.memory_layer_slots = [
-            int(index) for index in cfg.get(
-                "memory_layer_slots", range(len(self.intermediate_layers)),
+            int(index)
+            for index in cfg.get(
+                "memory_layer_slots",
+                range(len(self.intermediate_layers)),
             )
         ]
         if len(self.memory_layer_slots) != 4:
-            raise ValueError("encoder.memory_layer_slots must define exactly four decoder memories")
-        if min(self.memory_layer_slots) < 0 or max(self.memory_layer_slots) >= len(self.intermediate_layers):
+            raise ValueError(
+                "encoder.memory_layer_slots must define exactly four decoder memories"
+            )
+        if min(self.memory_layer_slots) < 0 or max(self.memory_layer_slots) >= len(
+            self.intermediate_layers
+        ):
             raise ValueError(
                 "encoder.memory_layer_slots contains an index outside intermediate_layers"
             )
@@ -74,7 +92,9 @@ class DINOv3Encoder:
         return self.image_size // self.patch_size, self.image_size // self.patch_size
 
     def preprocess(self, image_pil):
-        image = image_pil.convert("RGB").resize((self.image_size, self.image_size), Image.BICUBIC)
+        image = image_pil.convert("RGB").resize(
+            (self.image_size, self.image_size), Image.BICUBIC
+        )
         arr = np.asarray(image, dtype=np.float32) / 255.0
         x = torch.from_numpy(arr).permute(2, 0, 1).contiguous()
         mean = torch.tensor([0.485, 0.456, 0.406], dtype=x.dtype)[:, None, None]
@@ -95,9 +115,11 @@ class DINOv3Encoder:
             feat = feat[:, 1:, :]
             n -= 1
         if n != hf * wf:
-            side = int(n ** 0.5)
+            side = int(n**0.5)
             if side * side != n:
-                raise RuntimeError(f"Cannot reshape DINO tokens: N={n}, Hf={hf}, Wf={wf}")
+                raise RuntimeError(
+                    f"Cannot reshape DINO tokens: N={n}, Hf={hf}, Wf={wf}"
+                )
             hf = wf = side
         fmap = feat.transpose(1, 2).reshape(b, c, hf, wf).contiguous().float()
         return F.normalize(fmap, dim=1)
@@ -131,7 +153,9 @@ class DINOv3Encoder:
                     feat = out[key]
                     break
             if feat is None:
-                raise RuntimeError(f"No patch token field in DINOv3 output keys: {list(out.keys())}")
+                raise RuntimeError(
+                    f"No patch token field in DINOv3 output keys: {list(out.keys())}"
+                )
         else:
             feat = out
         return self._tokens_to_feature_map(feat).detach().clone()
@@ -144,9 +168,13 @@ class DINOv3Encoder:
         with torch.inference_mode():
             if self.device.type == "cuda":
                 with torch.autocast("cuda", dtype=torch.bfloat16):
-                    toks = self.model.get_intermediate_layers(batch, n=self.intermediate_layers)
+                    toks = self.model.get_intermediate_layers(
+                        batch, n=self.intermediate_layers
+                    )
             else:
-                toks = self.model.get_intermediate_layers(batch, n=self.intermediate_layers)
+                toks = self.model.get_intermediate_layers(
+                    batch, n=self.intermediate_layers
+                )
         toks = self._strip_cls(list(toks))
         if len(toks) != len(self.intermediate_layers):
             raise RuntimeError(

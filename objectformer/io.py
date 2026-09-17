@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from copy import deepcopy
 
 import numpy as np
@@ -13,8 +14,43 @@ def ensure_dir(path):
 
 
 def load_yaml(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(os.path.expandvars(f.read()))
+    """Load a dataset config over Full defaults; paths are repo-relative."""
+    root = Path(__file__).resolve().parents[1]
+    path = Path(path).resolve()
+
+    def read(p):
+        with p.open(encoding="utf-8") as f:
+            return yaml.safe_load(os.path.expandvars(f.read())) or {}
+
+    def merge(base, update):
+        for key, value in update.items():
+            if isinstance(value, dict) and isinstance(base.get(key), dict):
+                merge(base[key], value)
+            else:
+                base[key] = value
+        return base
+
+    cfg = read(path)
+    parent = cfg.pop("extends", None)
+    if parent:
+        cfg = merge(read(path.parent / parent), cfg)
+    for section, keys in {
+        "dataset": ["root"],
+        "encoder": ["repo", "weight_path", "torch_home"],
+        "proposal": ["repo", "checkpoint", "cache_dir"],
+        "hybrid_anchor": ["cache_dir"],
+        "train": ["output_dir"],
+        "infer": ["output_dir"],
+        "pseudo_bank": ["root"],
+    }.items():
+        for key in keys:
+            value = cfg.get(section, {}).get(key)
+            if value:
+                if "${" in str(value):
+                    raise ValueError(f"Unresolved environment variable: {value}")
+                p = Path(value).expanduser()
+                cfg[section][key] = str(p if p.is_absolute() else root / p)
+    return cfg
 
 
 def apply_overrides(cfg, overrides):

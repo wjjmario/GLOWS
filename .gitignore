@@ -4,3 +4,11 @@ outputs/
 checkpoints/
 cache/
 .pytest_cache/
+weights/
+cache/
+outputs/
+data/
+*.egg-info/
+.venv/
+third_party/**/.git/
+*.so

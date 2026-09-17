@@ -1,8 +1,8 @@
-name: wsdino
+name: glows
 channels:
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.10
   - pip
   - pip:
       - -r requirements.txt

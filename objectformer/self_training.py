@@ -34,15 +34,25 @@ class EMAModel:
 
 
 def point_signature(points):
-    normalized = {str(int(k)): [[round(float(x), 4), round(float(y), 4)] for x, y in v] for k, v in sorted(points.items())}
-    return hashlib.sha256(json.dumps(normalized, sort_keys=True).encode("utf-8")).hexdigest()
+    normalized = {
+        str(int(k)): [[round(float(x), 4), round(float(y), 4)] for x, y in v]
+        for k, v in sorted(points.items())
+    }
+    return hashlib.sha256(
+        json.dumps(normalized, sort_keys=True).encode("utf-8")
+    ).hexdigest()
 
 
 @torch.no_grad()
 def proposal_decoder_scores(outputs, instance_map, class_ids):
     """Project EMA query predictions onto fixed SAM proposal objects."""
     class_prob = outputs["pred_logits"][0].softmax(-1)[..., :-1]
-    masks = F.interpolate(outputs["pred_masks"], size=np.asarray(instance_map).shape, mode="bilinear", align_corners=False)[0].sigmoid()
+    masks = F.interpolate(
+        outputs["pred_masks"],
+        size=np.asarray(instance_map).shape,
+        mode="bilinear",
+        align_corners=False,
+    )[0].sigmoid()
     scores = {}
     inst = np.asarray(instance_map)
     for mid in np.unique(inst):
@@ -56,7 +66,9 @@ def proposal_decoder_scores(outputs, instance_map, class_ids):
         soft_iou = intersection / union.clamp_min(1e-6)
         scores[mid] = {}
         for index, cid in enumerate(class_ids):
-            value = torch.nan_to_num(class_prob[:, index] * soft_iou, nan=0.0, posinf=0.0, neginf=0.0)
+            value = torch.nan_to_num(
+                class_prob[:, index] * soft_iou, nan=0.0, posinf=0.0, neginf=0.0
+            )
             scores[mid][int(cid)] = float(value.max().clamp(0.0, 1.0).item())
     return scores
 
@@ -81,7 +93,17 @@ def reconcile_instances(previous, proposed, anchors, epoch, cfg, return_stats=Fa
 
     for mid, cid in anchors.items():
         old = previous_by_id.get(int(mid))
-        result.append(PseudoInstance(int(mid), int(cid), 1.0, "point", True, old.first_epoch if old else 0, epoch))
+        result.append(
+            PseudoInstance(
+                int(mid),
+                int(cid),
+                1.0,
+                "point",
+                True,
+                old.first_epoch if old else 0,
+                epoch,
+            )
+        )
         stats["bank_anchored"] += 1
 
     for mid in sorted(set(previous_by_id) | set(proposed_by_id)):
@@ -106,7 +128,10 @@ def reconcile_instances(previous, proposed, anchors, epoch, cfg, return_stats=Fa
             else:
                 stats["bank_dropped"] += 1
             continue
-        if int(new.class_id) != int(old.class_id) and float(new.confidence) < float(old.confidence) + class_change_margin:
+        if (
+            int(new.class_id) != int(old.class_id)
+            and float(new.confidence) < float(old.confidence) + class_change_margin
+        ):
             old.confidence = max(float(old.confidence) * 0.95, keep_threshold)
             old.last_epoch = epoch
             result.append(old)

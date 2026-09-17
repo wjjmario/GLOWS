@@ -14,7 +14,9 @@ def dice_loss(logits, targets, weights):
 
 
 class SetCriterion(nn.Module):
-    def __init__(self, num_classes, matcher, weight_dict, eos_coef=0.1, num_points=4096):
+    def __init__(
+        self, num_classes, matcher, weight_dict, eos_coef=0.1, num_points=4096
+    ):
         super().__init__()
         self.num_classes = int(num_classes)
         self.matcher = matcher
@@ -26,17 +28,25 @@ class SetCriterion(nn.Module):
 
     @staticmethod
     def _permutation(indices):
-        batch = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
+        batch = torch.cat(
+            [torch.full_like(src, i) for i, (src, _) in enumerate(indices)]
+        )
         source = torch.cat([src for src, _ in indices])
         return batch, source
 
     def loss_labels(self, outputs, targets, indices):
         logits = outputs["pred_logits"]
-        target_classes = torch.full(logits.shape[:2], self.num_classes, dtype=torch.long, device=logits.device)
+        target_classes = torch.full(
+            logits.shape[:2], self.num_classes, dtype=torch.long, device=logits.device
+        )
         for i, (src, dst) in enumerate(indices):
             if src.numel():
                 target_classes[i, src] = targets[i]["labels"][dst]
-        return {"loss_ce": F.cross_entropy(logits.transpose(1, 2), target_classes, self.class_weights)}
+        return {
+            "loss_ce": F.cross_entropy(
+                logits.transpose(1, 2), target_classes, self.class_weights
+            )
+        }
 
     def loss_masks(self, outputs, targets, indices):
         batch_idx, src_idx = self._permutation(indices)
@@ -47,7 +57,9 @@ class SetCriterion(nn.Module):
         target_masks, weights = [], []
         for target, (_, dst) in zip(targets, indices):
             target_masks.append(target["masks"][dst])
-            default_weights = torch.ones(target["labels"].numel(), device=source_masks.device)
+            default_weights = torch.ones(
+                target["labels"].numel(), device=source_masks.device
+            )
             weights.append(target.get("weights", default_weights)[dst])
         target_masks = torch.cat(target_masks, dim=0).to(source_masks)
         weights = torch.cat(weights, dim=0).to(source_masks).clamp(0.05, 1.0)
@@ -64,17 +76,29 @@ class SetCriterion(nn.Module):
         if (
             outputs.get("pred_prototypes") is None
             or src_idx.numel() == 0
-            or not all(t.get("embeddings") is not None and t["embeddings"].numel() for t in targets)
+            or not all(
+                t.get("embeddings") is not None and t["embeddings"].numel()
+                for t in targets
+            )
         ):
             return {"loss_proto": outputs["pred_logits"].sum() * 0.0}
         target_embeddings, weights = [], []
         for target, (_, dst) in zip(targets, indices):
             target_embeddings.append(target["embeddings"][dst])
-            weights.append(target.get("weights", torch.ones(target["labels"].numel(), device=src_idx.device))[dst])
-        target_embeddings = F.normalize(torch.cat(target_embeddings).to(outputs["pred_prototypes"]), dim=1)
-        predicted = F.normalize(outputs["pred_prototypes"][batch_idx, src_idx].float(), dim=1)
+            weights.append(
+                target.get(
+                    "weights",
+                    torch.ones(target["labels"].numel(), device=src_idx.device),
+                )[dst]
+            )
+        target_embeddings = F.normalize(
+            torch.cat(target_embeddings).to(outputs["pred_prototypes"]), dim=1
+        )
+        predicted = F.normalize(
+            outputs["pred_prototypes"][batch_idx, src_idx].float(), dim=1
+        )
         weights = torch.cat(weights).to(predicted).clamp(0.05, 1.0)
-        loss = (1.0 - (predicted * target_embeddings).sum(1))
+        loss = 1.0 - (predicted * target_embeddings).sum(1)
         value = (loss * weights).sum() / weights.sum().clamp_min(1e-6)
         return {"loss_proto": torch.nan_to_num(value, nan=0.0, posinf=10.0, neginf=0.0)}
 
@@ -94,7 +118,9 @@ class SetCriterion(nn.Module):
         weighted = {}
         total = outputs["pred_logits"].sum() * 0.0
         for name, value in losses.items():
-            base_name = name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
+            base_name = (
+                name.rsplit("_", 1)[0] if name.rsplit("_", 1)[-1].isdigit() else name
+            )
             weight = float(self.weight_dict.get(base_name, 0.0))
             weighted[name] = value
             total = total + weight * value

@@ -28,13 +28,25 @@ class SegDataset:
     def _list_items(self):
         items = []
         for subset in self.subsets:
-            image_dir = self.image_dir if subset is None else os.path.join(self.root, self.split, subset, self.dataset_image_dir)
-            label_dir = self.label_dir if subset is None else os.path.join(self.root, self.split, subset, self.dataset_label_dir)
+            image_dir = (
+                self.image_dir
+                if subset is None
+                else os.path.join(self.root, self.split, subset, self.dataset_image_dir)
+            )
+            label_dir = (
+                self.label_dir
+                if subset is None
+                else os.path.join(self.root, self.split, subset, self.dataset_label_dir)
+            )
             if not os.path.isdir(image_dir):
                 raise FileNotFoundError(image_dir)
             if not os.path.isdir(label_dir):
                 label_dir = None
-            names = sorted(n for n in os.listdir(image_dir) if os.path.splitext(n)[1].lower() in self.exts)
+            names = sorted(
+                n
+                for n in os.listdir(image_dir)
+                if os.path.splitext(n)[1].lower() in self.exts
+            )
             for name in names:
                 stem = os.path.splitext(name)[0]
                 label_path = None
@@ -54,14 +66,33 @@ class SegDataset:
                     stride = max(1, self.crop_stride)
                     xs = list(range(0, max(1, width - self.crop_size + 1), stride))
                     ys = list(range(0, max(1, height - self.crop_size + 1), stride))
-                    if xs[-1] != max(0, width - self.crop_size): xs.append(max(0, width - self.crop_size))
-                    if ys[-1] != max(0, height - self.crop_size): ys.append(max(0, height - self.crop_size))
+                    if xs[-1] != max(0, width - self.crop_size):
+                        xs.append(max(0, width - self.crop_size))
+                    if ys[-1] != max(0, height - self.crop_size):
+                        ys.append(max(0, height - self.crop_size))
                     for y in ys:
                         for x in xs:
-                            items.append({"stem": f"{prefix}{stem}_{x}_{y}", "image": image_path, "label": label_path,
-                                          "crop_box": (x, y, min(width, x + self.crop_size), min(height, y + self.crop_size))})
+                            items.append(
+                                {
+                                    "stem": f"{prefix}{stem}_{x}_{y}",
+                                    "image": image_path,
+                                    "label": label_path,
+                                    "crop_box": (
+                                        x,
+                                        y,
+                                        min(width, x + self.crop_size),
+                                        min(height, y + self.crop_size),
+                                    ),
+                                }
+                            )
                 else:
-                    items.append({"stem": f"{prefix}{stem}", "image": image_path, "label": label_path})
+                    items.append(
+                        {
+                            "stem": f"{prefix}{stem}",
+                            "image": image_path,
+                            "label": label_path,
+                        }
+                    )
         return items
 
     def __len__(self):
@@ -83,7 +114,9 @@ class SegDataset:
         task_mode = str(self.task_cfg.get("mode", "multiclass")).lower()
         if task_mode == "binary":
             bg = int(self.task_cfg.get("background_id", 0))
-            targets = sorted(int(k) for k in self.task_cfg.get("target_classes", {}).keys())
+            targets = sorted(
+                int(k) for k in self.task_cfg.get("target_classes", {}).keys()
+            )
             if len(targets) != 1:
                 raise ValueError("Binary mode requires exactly one target class.")
             out = np.full(arr.shape, bg, dtype=np.uint16)
